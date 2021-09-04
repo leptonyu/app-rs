@@ -17,6 +17,7 @@ impl From<Configuration> for Application {
     }
 }
 
+#[allow(clippy::type_complexity)]
 struct Cache(Mutex<HashMap<TypeId, HashMap<String, Arc<dyn Any + Send + Sync + 'static>>>>);
 
 impl Cache {
@@ -67,8 +68,8 @@ impl Application {
     }
 
     pub fn get_or_new<R: Resource>(&self, key: &str) -> Result<R, ConfigError> {
-        let c = self.config.get::<R::Config>(&key)?;
-        R::create(c, &AppContext { app: &self })
+        let c = self.config.get::<R::Config>(key)?;
+        R::create(c, &AppContext { app: self })
     }
 
     pub fn get<R: Resource>(&self, key: &str) -> Result<Arc<R>, ConfigError> {
