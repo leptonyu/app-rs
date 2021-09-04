@@ -1,8 +1,36 @@
 [package]
-name = "app-rs"
-version = "0.1.0"
+authors = ['Daniel Yu <leptonyu@gmail.com>']
+categories = ['config']
+description = 'A rust configuration loader'
+documentation = 'https://docs.rs/cfg-rs/'
 edition = "2018"
+homepage = 'https://github.com/leptonyu/cfg-rs'
+keywords = [
+  'application',
+]
+license = 'MIT'
+name = "app-rs"
+readme = 'README.md'
+repository = 'https://github.com/leptonyu/cfg-rs'
+version = "0.1.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [
+  '--cfg',
+  'docsrs',
+]
+
+[package.metadata.playground]
+all-features = true
 
 [dependencies]
+cfg-rs = {version = "^0.2.4", features = ["full"]}
+
+[dev-dependencies]
+criterion = '0.3'
+rand_core = '0.6'
+
+[[bench]]
+harness = false
+name = "core"
