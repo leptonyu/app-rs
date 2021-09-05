@@ -1,0 +1,13 @@
+[package]
+edition = "2018"
+name = "redis-rs"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+app-rs = {version = '^0.0', path = '../..'}
+cfg-rs = {version = '^0.2.6', features = ['rand']}
+r2d2 = '^0.8'
+redis = {version = '^0.21', features = ['cluster']}
+scheduled-thread-pool = {version = '^0.2'}

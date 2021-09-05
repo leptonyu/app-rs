@@ -1,10 +1,11 @@
 use std::{
     any::{Any, TypeId},
     collections::{hash_map::Entry, HashMap},
+    ops::Deref,
     sync::{Arc, Mutex},
 };
 
-use cfg_rs::{ConfigError, Configuration, FromConfig};
+use cfg_rs::{ConfigError, Configuration, FromConfig, FromConfigWithPrefix};
 
 pub struct Application {
     config: Configuration,
@@ -45,16 +46,29 @@ impl Cache {
 
 pub struct AppContext<'a> {
     app: &'a Application,
+    namespace: &'a str,
 }
 
 impl AppContext<'_> {
     pub fn get_conf<T: FromConfig>(&self, key: &str) -> Result<T, ConfigError> {
         self.app.config.get::<T>(key)
     }
+
+    pub fn get_namespace(&self) -> &str {
+        self.namespace
+    }
+}
+
+impl Deref for AppContext<'_> {
+    type Target = Application;
+
+    fn deref(&self) -> &Self::Target {
+        self.app
+    }
 }
 
 pub trait Resource: Any + Send + Sync + Sized {
-    type Config: FromConfig;
+    type Config: FromConfigWithPrefix;
 
     fn create(config: Self::Config, context: &AppContext<'_>) -> Result<Self, ConfigError>;
 }
@@ -67,9 +81,17 @@ impl Application {
         }
     }
 
-    pub fn get_or_new<R: Resource>(&self, key: &str) -> Result<R, ConfigError> {
-        let c = self.config.get::<R::Config>(key)?;
-        R::create(c, &AppContext { app: self })
+    pub fn get_or_new<R: Resource>(&self, namespace: &str) -> Result<R, ConfigError> {
+        let c = self
+            .config
+            .get::<R::Config>(&format!("{}.{}", R::Config::prefix(), namespace))?;
+        R::create(
+            c,
+            &AppContext {
+                app: self,
+                namespace,
+            },
+        )
     }
 
     pub fn get<R: Resource>(&self, key: &str) -> Result<Arc<R>, ConfigError> {
@@ -85,45 +107,36 @@ impl<T: Resource> Resource for Arc<T> {
     }
 }
 
-macro_rules! impl_primitive {
-    ($x:ty) => {
-        impl Resource for $x {
-            type Config = $x;
-
-            fn create(x: Self::Config, _: &AppContext<'_>) -> Result<Self, ConfigError> {
-                Ok(x)
-            }
-        }
-    };
-}
-
-impl_primitive!(());
-
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
 
-    use cfg_rs::{ConfigError, Configuration};
+    use cfg_rs::*;
 
     use crate::*;
 
-    impl_primitive!(u8);
+    #[derive(FromConfig, Debug)]
+    #[config(prefix = "hello")]
+    struct U {
+        #[config(default = "${random.u8}")]
+        u: u8,
+    }
+
+    impl Resource for U {
+        type Config = U;
+
+        fn create(config: Self::Config, _: &AppContext<'_>) -> Result<Self, ConfigError> {
+            Ok(config)
+        }
+    }
 
     #[test]
     fn u8_test() -> Result<(), ConfigError> {
-        let app = Application::new(
-            Configuration::new()
-                .register_random()
-                .unwrap()
-                .register_kv("name")
-                .set("hello", "${random.u8}")
-                .finish()
-                .unwrap(),
-        );
-        let u = app.get::<u8>("hello")?;
-        println!("{}", u);
+        let app = Application::new(Configuration::new());
+        let u = app.get::<U>("hello")?;
+        println!("{}", u.u);
         for _ in 0..10 {
-            assert_eq!(&u, &app.get::<u8>("hello")?);
+            assert_eq!(&u.u, &app.get::<U>("hello")?.u);
         }
         Ok(())
     }
@@ -131,7 +144,7 @@ mod test {
     #[test]
     fn fun_test() -> Result<(), ConfigError> {
         let app = Application::new(Configuration::new());
-        app.get::<()>("")?;
+        app.get::<U>("")?;
         Ok(())
     }
 
@@ -139,6 +152,6 @@ mod test {
     #[should_panic]
     fn panic_test() {
         let app = Application::new(Configuration::new());
-        app.get::<Arc<()>>("").unwrap();
+        app.get::<Arc<U>>("").unwrap();
     }
 }
