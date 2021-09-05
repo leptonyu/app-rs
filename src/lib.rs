@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use cfg_rs::{ConfigError, Configuration, FromConfig, FromConfigWithPrefix};
+use cfg_rs::{ConfigError, Configuration, FromConfig};
 
 pub struct Application {
     config: Configuration,
@@ -68,7 +68,9 @@ impl Deref for AppContext<'_> {
 }
 
 pub trait Resource: Any + Send + Sync + Sized {
-    type Config: FromConfigWithPrefix;
+    type Config: FromConfig;
+
+    fn prefix_key() -> String;
 
     fn create(config: Self::Config, context: &AppContext<'_>) -> Result<Self, ConfigError>;
 }
@@ -84,7 +86,7 @@ impl Application {
     pub fn get_or_new<R: Resource>(&self, namespace: &str) -> Result<R, ConfigError> {
         let c = self
             .config
-            .get::<R::Config>(&format!("{}.{}", R::Config::prefix(), namespace))?;
+            .get::<R::Config>(&format!("{}.{}", R::prefix_key(), namespace))?;
         R::create(
             c,
             &AppContext {
@@ -103,7 +105,14 @@ impl<T: Resource> Resource for Arc<T> {
     type Config = T::Config;
 
     fn create(config: Self::Config, context: &AppContext<'_>) -> Result<Self, ConfigError> {
-        context.app.cache.get("", || T::create(config, context))
+        context
+            .app
+            .cache
+            .get(context.namespace, || T::create(config, context))
+    }
+
+    fn prefix_key() -> String {
+        T::prefix_key()
     }
 }
 
@@ -124,26 +133,33 @@ mod test {
 
     impl Resource for U {
         type Config = U;
+        fn prefix_key() -> String {
+            "".to_string()
+        }
 
         fn create(config: Self::Config, _: &AppContext<'_>) -> Result<Self, ConfigError> {
             Ok(config)
         }
     }
 
+    fn new_config() -> Application {
+        Application::new(Configuration::new().register_random().unwrap())
+    }
+
     #[test]
     fn u8_test() -> Result<(), ConfigError> {
-        let app = Application::new(Configuration::new());
-        let u = app.get::<U>("hello")?;
+        let app = new_config();
+        let u = app.get::<U>("")?;
         println!("{}", u.u);
         for _ in 0..10 {
-            assert_eq!(&u.u, &app.get::<U>("hello")?.u);
+            assert_eq!(&u.u, &app.get::<U>("")?.u);
         }
         Ok(())
     }
 
     #[test]
     fn fun_test() -> Result<(), ConfigError> {
-        let app = Application::new(Configuration::new());
+        let app = new_config();
         app.get::<U>("")?;
         Ok(())
     }
@@ -151,7 +167,7 @@ mod test {
     #[test]
     #[should_panic]
     fn panic_test() {
-        let app = Application::new(Configuration::new());
+        let app = new_config();
         app.get::<Arc<U>>("").unwrap();
     }
 }

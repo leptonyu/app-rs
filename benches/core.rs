@@ -18,6 +18,10 @@ impl Resource for X {
     ) -> Result<Self, cfg_rs::ConfigError> {
         Ok(config)
     }
+
+    fn prefix_key() -> String {
+        "".to_string()
+    }
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
