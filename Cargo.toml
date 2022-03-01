@@ -25,7 +25,7 @@ rustdoc-args = [
 all-features = true
 
 [dependencies]
-cfg-rs = {version = "^0.2.6", features = ["rand"]}
+cfg-rs = {version = "^0.2.7", features = ["rand"]}
 
 [dev-dependencies]
 criterion = '0.3'
