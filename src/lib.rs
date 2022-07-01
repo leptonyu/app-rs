@@ -31,12 +31,12 @@ impl Cache {
             Ok(v) => v,
             Err(_) => return Err(ConfigError::RefValueRecursiveError),
         };
-        Ok(
-            match g
+        let res = g
                 .entry(TypeId::of::<T>())
                 .or_insert_with(HashMap::new)
-                .entry(namespace.to_string())
-            {
+                .entry(namespace.to_string());
+        Ok(
+            match res {
                 Entry::Occupied(mut v) => v.get_mut().clone().downcast::<T>().unwrap(),
                 Entry::Vacant(v) => v.insert(Arc::new((f)()?)).clone().downcast::<T>().unwrap(),
             },
