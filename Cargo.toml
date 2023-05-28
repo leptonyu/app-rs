@@ -28,7 +28,7 @@ all-features = true
 cfg-rs = {version = "^0.3", features = ["rand"]}
 
 [dev-dependencies]
-criterion = '0.4'
+criterion = '0.5'
 rand_core = '0.6'
 
 [[bench]]
