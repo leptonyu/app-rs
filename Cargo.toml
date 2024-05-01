@@ -29,7 +29,7 @@ cfg-rs = {version = "^0.4.0", features = ["rand"]}
 
 [dev-dependencies]
 criterion = '0.5.1'
-rand_core = '0.6'
+rand_core = '0.6.4'
 
 [[bench]]
 harness = false
